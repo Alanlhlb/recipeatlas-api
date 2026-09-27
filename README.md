@@ -270,7 +270,7 @@ npm test
 
 The test suite uses `recipeatlas.test.db`, while normal development uses `recipeatlas.db`. This keeps test data separate from development data.
 
-Tests cover successful and invalid API requests, authentication, administrator access restrictions, CRUD behaviour, favourites, messages, database constraints, OpenAPI documentation, CORS, external API failures, catalogue filtering and sorting, HTTP conditional requests, and hypermedia links.
+Tests cover successful and invalid API requests, authentication, administrator access restrictions, CRUD behaviour, favourites, messages, database constraints, OpenAPI documentation, CORS, external API failures, catalogue filtering and sorting, hostile query string input, HTTP conditional requests, and hypermedia links.
 
 Jest runs with `--runInBand` so the suites execute sequentially. All suites share a single SQLite test file, and running them in parallel causes lock contention and intermittent timeouts.
 
