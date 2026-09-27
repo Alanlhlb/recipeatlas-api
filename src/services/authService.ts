@@ -69,6 +69,24 @@ function toPublicUser(user: UserRow): PublicUser {
 }
 
 /**
+ * Finds a user for an authenticated account request.
+ */
+export function getPublicUserById(id: number): PublicUser {
+  const user = db
+    .prepare(
+      `SELECT id, name, email, passwordHash, role, createdAt, updatedAt
+       FROM users WHERE id = ?`,
+    )
+    .get(id) as UserRow | undefined;
+
+  if (!user) {
+    throw new AppError('User account was not found', 401);
+  }
+
+  return toPublicUser(user);
+}
+
+/**
  * Creates a standard user account. Public registration never creates admins.
  */
 export async function registerUser(input: RegisterInput): Promise<PublicUser> {

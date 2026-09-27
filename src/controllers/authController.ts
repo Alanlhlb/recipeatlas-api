@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { loginUser, registerUser } from '../services/authService';
+import { getPublicUserById, loginUser, registerUser } from '../services/authService';
 
 /**
  * Handles public account registration requests.
@@ -27,6 +27,22 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     res.status(200).json({
       status: 'success',
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Returns the account represented by the validated access token.
+ */
+export function getCurrentUser(req: Request, res: Response, next: NextFunction): void {
+  try {
+    const user = getPublicUserById(req.user!.id);
+
+    res.status(200).json({
+      status: 'success',
+      data: { user },
     });
   } catch (error) {
     next(error);
