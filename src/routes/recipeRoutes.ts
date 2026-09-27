@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { list } from '../controllers/recipeController';
+import { getById, list } from '../controllers/recipeController';
 
 const recipeRouter = Router();
 
 recipeRouter.get('/', list);
+recipeRouter.get('/:id', getById);
 
 export default recipeRouter;

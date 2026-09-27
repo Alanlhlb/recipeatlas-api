@@ -105,7 +105,7 @@ function validateRecipe(input: CreateRecipeInput): ValidatedRecipe {
   };
 }
 
-function getRecipeById(id: number): Recipe {
+export function getRecipeById(id: number): Recipe {
   const recipe = db
     .prepare(
       `SELECT id, title, instructions, category, imageUrl, cookingTime, servings,
