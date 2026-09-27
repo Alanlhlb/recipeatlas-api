@@ -11,10 +11,18 @@ import externalRecipeRouter from './routes/externalRecipeRoutes';
 import favoriteRouter from './routes/favoriteRoutes';
 import messageRouter from './routes/messageRoutes';
 import openApiDocument from './docs/openapi';
+import config from './config/env';
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      const allowed = !origin || origin === config.frontendOrigin;
+      callback(null, allowed);
+    },
+  }),
+);
 app.use(express.json());
 
 app.get('/api/openapi.json', (_req, res) => {

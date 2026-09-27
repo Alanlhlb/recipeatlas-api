@@ -6,4 +6,5 @@ if (!jwtSecret) {
 
 export default {
   jwtSecret,
+  frontendOrigin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
 };
