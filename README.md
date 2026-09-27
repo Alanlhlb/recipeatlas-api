@@ -7,9 +7,14 @@ This repository is the **backend API** for the 6003CEM Web API Development cours
 ## Features
 
 - Public recipe catalogue, title search, and recipe detail endpoints
+- Server-side filtering by category and difficulty, plus maximum cooking time
+- Server-side sorting with a whitelisted column set and ascending or descending order
 - Secure user registration and login
 - Password hashing with bcrypt
 - JWT Bearer authentication and role-based access control
+- Optional authentication so public endpoints still return role-aware hypermedia
+- HTTP conditional requests with weak `ETag` and `304 Not Modified` responses
+- HATEOAS hypermedia links that adapt to the caller's role
 - Secure administrator provisioning through local environment variables
 - Administrator recipe create, update, and delete operations
 - Personal favourite recipe collection for registered users
@@ -18,6 +23,7 @@ This repository is the **backend API** for the 6003CEM Web API Development cours
 - OpenAPI 3.0.3 specification and interactive Swagger UI
 - SQLite production database and separate test database
 - Automated endpoint tests using Jest and Supertest
+- JSDoc documentation on exported functions, services, and shared types
 
 ## Technology
 
@@ -41,6 +47,7 @@ src/
   scripts/       Local administrator provisioning script
   services/      Business and persistence logic
   types/         Shared TypeScript data types
+  utils/         Conditional request and hypermedia helpers
 tests/           Automated API endpoint and schema tests
 ```
 
@@ -164,8 +171,9 @@ The Swagger UI includes endpoint request bodies, JWT Bearer authorisation, expec
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/health` | Confirm that the API is running |
-| GET | `/api/recipes` | Browse local recipes |
+| GET | `/api/recipes` | Browse local recipes, with filtering and sorting |
 | GET | `/api/recipes?q=pasta` | Search local recipe titles |
+| GET | `/api/recipes?category=Dinner&sort=title&order=asc` | Filter by category and sort by title |
 | GET | `/api/recipes/:id` | Read one local recipe |
 | GET | `/api/external-recipes?q=pasta` | Search TheMealDB without saving data locally |
 | POST | `/api/auth/register` | Register a standard user account |
@@ -190,6 +198,68 @@ The Swagger UI includes endpoint request bodies, JWT Bearer authorisation, expec
 | DELETE | `/api/admin/recipes/:id` | Delete a recipe and its ingredients |
 | GET | `/api/messages` | View contact messages |
 
+## Filtering and sorting
+
+`GET /api/recipes` accepts the following optional query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `q` | string | Case-insensitive partial match on the recipe title |
+| `category` | string | Case-insensitive exact match on the category |
+| `difficulty` | string | One of `Easy`, `Medium`, `Hard` |
+| `maxTime` | integer | Only recipes whose cooking time is at most this many minutes |
+| `sort` | string | One of `title`, `category`, `cookingTime`, `servings`, `difficulty`, `createdAt`, `updatedAt` |
+| `order` | string | `asc` or `desc` (default `asc`) |
+
+All parameters are optional and can be combined. The response body contains a `count` field with the number of matching recipes and a `data` array.
+
+```http
+GET /api/recipes?category=Dinner&maxTime=45&sort=cookingTime&order=desc
+```
+
+Query values are always sent to SQLite as bound parameters, and the `sort` column is resolved through a whitelist, so user input is never interpolated directly into SQL. Invalid values for `difficulty`, `sort`, or `order` return `400 Bad Request`.
+
+## Conditional requests
+
+`GET /api/recipes` and `GET /api/recipes/:id` return a weak `ETag` header derived from the response body:
+
+```http
+ETag: W/"nH1xfhcIBXGxpnxrOYy075aWNHI"
+Cache-Control: no-cache
+Vary: Authorization
+```
+
+Send the value back in `If-None-Match` to avoid re-downloading unchanged data. When the representation has not changed the API replies with `304 Not Modified` and an empty body:
+
+```http
+If-None-Match: W/"nH1xfhcIBXGxpnxrOYy075aWNHI"
+```
+
+`Vary: Authorization` tells caches that the representation depends on the caller's role, because hypermedia links differ between anonymous visitors, users, and administrators.
+
+## Hypermedia links
+
+Every recipe resource and recipe collection includes a `_links` object so clients can discover available actions without hard-coding URLs. Each link contains `href`, `method`, and a human-readable `title`.
+
+```json
+{
+  "id": 1,
+  "title": "Creamy Garlic Pasta",
+  "_links": {
+    "self": { "href": "/api/recipes/1", "method": "GET", "title": "Read this recipe" },
+    "collection": { "href": "/api/recipes", "method": "GET", "title": "Browse all recipes" }
+  }
+}
+```
+
+The link set adapts to the caller's role:
+
+- **Anonymous**: `self`, `collection`.
+- **Authenticated user**: adds `add-favourite`, `remove-favourite`, and `contact-administrator`; the collection adds `favourites`.
+- **Administrator**: adds `update` and `delete`; the collection adds `create` and `messages`.
+
+These endpoints use optional authentication, so a valid `Authorization: Bearer <token>` enriches the response but is never required. A missing or malformed token is treated as an anonymous request rather than an error.
+
 ## Testing
 
 Run all automated tests with:
@@ -200,7 +270,13 @@ npm test
 
 The test suite uses `recipeatlas.test.db`, while normal development uses `recipeatlas.db`. This keeps test data separate from development data.
 
-Tests cover successful and invalid API requests, authentication, administrator access restrictions, CRUD behaviour, favourites, messages, database constraints, OpenAPI documentation, CORS, and external API failures.
+Tests cover successful and invalid API requests, authentication, administrator access restrictions, CRUD behaviour, favourites, messages, database constraints, OpenAPI documentation, CORS, external API failures, catalogue filtering and sorting, HTTP conditional requests, and hypermedia links.
+
+Jest runs with `--runInBand` so the suites execute sequentially. All suites share a single SQLite test file, and running them in parallel causes lock contention and intermittent timeouts.
+
+## Code documentation
+
+Exported services, controllers, middleware, utilities, and shared types are documented with JSDoc blocks, including `@param`, `@returns`, and `@throws` tags. Editors such as Visual Studio Code show these comments on hover and in autocomplete.
 
 ## Security and data handling
 
@@ -227,7 +303,7 @@ The API normalises TheMealDB response fields into the RecipeAtlas recipe shape. 
 
 The coursework requires two separate GitHub repositories:
 
-1. This backend TypeScript REST API repository.
-2. A separate React TypeScript SPA frontend repository.
+1. This backend TypeScript REST API repository: <https://github.com/Alanlhlb/recipeatlas-api>
+2. A separate React TypeScript SPA frontend repository: <https://github.com/Alanlhlb/recipeatlas-client>
 
-The frontend repository will consume this API using the `FRONTEND_ORIGIN` configured above.
+The frontend repository consumes this API using the `FRONTEND_ORIGIN` configured above.
