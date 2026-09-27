@@ -39,6 +39,15 @@ db.exec(`
     quantity TEXT,
     FOREIGN KEY (recipeId) REFERENCES recipes(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS favorites (
+    userId INTEGER NOT NULL,
+    recipeId INTEGER NOT NULL,
+    createdAt TEXT NOT NULL,
+    PRIMARY KEY (userId, recipeId),
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (recipeId) REFERENCES recipes(id) ON DELETE CASCADE
+  );
 `);
 
 export default db;
