@@ -29,10 +29,9 @@ describe('GET /api/recipes?q=', () => {
     const response = await request(app).get('/api/recipes?q=burger');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
-      status: 'success',
-      data: { recipes: [] },
-    });
+    expect(response.body.status).toBe('success');
+    expect(response.body.data.count).toBe(0);
+    expect(response.body.data.recipes).toEqual([]);
   });
 
   it('treats wildcard characters as normal search text', async () => {

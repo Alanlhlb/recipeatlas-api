@@ -2,17 +2,27 @@ import bcrypt from 'bcrypt';
 import db from '../db/database';
 import type { PublicUser, User } from '../types/user';
 
+/** Credentials supplied when seeding the first administrator. */
 interface AdminInput {
   name: string;
   email: string;
   password: string;
 }
 
+/** Simple format check applied to the administrator email address. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Minimum length required for the administrator password. */
 const PASSWORD_MINIMUM_LENGTH = 12;
 
 /**
  * Creates the initial administrator account from local environment settings.
+ *
+ * Unlike the API's request validation this script throws plain `Error`s, because it
+ * runs from the command line rather than inside a request.
+ *
+ * @param input - Administrator name, email and password taken from the environment.
+ * @returns The created account, without its password hash.
+ * @throws {Error} when a field is missing or invalid, or the email already exists.
  */
 export async function provisionAdministrator(input: AdminInput): Promise<PublicUser> {
   const name = input.name.trim();

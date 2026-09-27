@@ -1,7 +1,22 @@
+/**
+ * OpenAPI 3.0 description of the RecipeAtlas API.
+ *
+ * This module is the single source of truth for the interactive Swagger UI served
+ * at `/api/docs` and the raw document served at `/api/openapi.json`. The document
+ * is a plain `as const` literal so `swagger-ui-express` can consume it directly.
+ */
+
+/**
+ * Wraps a schema in the standard `application/json` content object.
+ *
+ * @param schema - JSON Schema describing a request or response body.
+ * @returns An OpenAPI content map for that schema.
+ */
 const jsonContent = (schema: object) => ({
   'application/json': { schema },
 });
 
+/** Reusable error responses keyed by HTTP status code. */
 const errorResponses = {
   '400': { description: 'Invalid request', content: jsonContent({ $ref: '#/components/schemas/ErrorResponse' }) },
   '401': { description: 'Authentication required or token invalid', content: jsonContent({ $ref: '#/components/schemas/ErrorResponse' }) },
@@ -11,6 +26,7 @@ const errorResponses = {
   '502': { description: 'External recipe provider unavailable', content: jsonContent({ $ref: '#/components/schemas/ErrorResponse' }) },
 };
 
+/** Path parameter describing the `id` used by the recipe endpoints. */
 const recipeIdParameter = {
   name: 'id',
   in: 'path',
@@ -18,6 +34,7 @@ const recipeIdParameter = {
   schema: { type: 'integer', minimum: 1 },
 };
 
+/** Path parameter describing the `recipeId` used by the favourite endpoints. */
 const favoriteRecipeIdParameter = {
   name: 'recipeId',
   in: 'path',
@@ -25,6 +42,42 @@ const favoriteRecipeIdParameter = {
   schema: { type: 'integer', minimum: 1 },
 };
 
+/** Query parameters accepted by the recipe catalogue endpoint. */
+const recipeListParameters = [
+  { name: 'q', in: 'query', required: false, schema: { type: 'string' }, description: 'Case-insensitive partial match against the recipe title' },
+  { name: 'category', in: 'query', required: false, schema: { type: 'string' }, description: 'Exact, case-insensitive category match' },
+  { name: 'difficulty', in: 'query', required: false, schema: { type: 'string', enum: ['easy', 'medium', 'hard'] }, description: 'Return only recipes with this difficulty' },
+  { name: 'maxTime', in: 'query', required: false, schema: { type: 'integer', minimum: 1 }, description: 'Return only recipes whose cooking time is at most this many minutes' },
+  { name: 'sort', in: 'query', required: false, schema: { type: 'string', enum: ['title', 'category', 'cookingTime', 'servings', 'difficulty', 'createdAt', 'updatedAt'] }, description: 'Field to order the collection by. Any other value is rejected with 400.' },
+  { name: 'order', in: 'query', required: false, schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' }, description: 'Sort direction, applied together with sort' },
+];
+
+/** Optional header enabling conditional requests against a cached representation. */
+const ifNoneMatchHeader = {
+  name: 'If-None-Match',
+  in: 'header',
+  required: false,
+  schema: { type: 'string' },
+  description: 'Entity tag previously returned by this endpoint. When it still matches the current representation the API answers 304 Not Modified with no body.',
+};
+
+/** Response headers sent with every recipe representation. */
+const representationHeaders = {
+  ETag: { schema: { type: 'string' }, description: 'Weak entity tag identifying this representation, for example W/"3f9c1a..."' },
+  'Cache-Control': { schema: { type: 'string' }, description: 'Always no-cache, so clients revalidate rather than serve a stale copy' },
+  Vary: { schema: { type: 'string' }, description: 'Always Authorization, because the hypermedia links depend on the caller role' },
+};
+
+/** Shared `304 Not Modified` response used by the conditional recipe endpoints. */
+const notModifiedResponse = {
+  description: 'Not modified — the caller already holds the current representation',
+  headers: { ETag: { schema: { type: 'string' }, description: 'The unchanged entity tag' } },
+};
+
+/** Anonymous access, or authenticated access when a Bearer token is supplied. */
+const optionalSecurity = [{}, { bearerAuth: [] }];
+
+/** The complete OpenAPI document exported for Swagger UI and the JSON endpoint. */
 const openApiDocument = {
   openapi: '3.0.3',
   info: {
@@ -90,10 +143,14 @@ const openApiDocument = {
     '/api/recipes': {
       get: {
         tags: ['Recipes'],
-        summary: 'Browse or search local recipes',
-        parameters: [{ name: 'q', in: 'query', required: false, schema: { type: 'string' }, description: 'Case-insensitive recipe title search' }],
+        summary: 'Browse, search, filter and sort local recipes',
+        description:
+          'Publicly readable, with no token required. A valid Bearer token is optional and only changes which HATEOAS links are advertised. Supports conditional requests: send If-None-Match with an ETag previously returned by this endpoint to receive 304 Not Modified when the catalogue has not changed.',
+        security: optionalSecurity,
+        parameters: [...recipeListParameters, ifNoneMatchHeader],
         responses: {
-          '200': { description: 'Recipe catalogue', content: jsonContent({ $ref: '#/components/schemas/RecipeListResponse' }) },
+          '200': { description: 'Recipe catalogue', headers: representationHeaders, content: jsonContent({ $ref: '#/components/schemas/RecipeListResponse' }) },
+          '304': notModifiedResponse,
           '400': errorResponses['400'],
         },
       },
@@ -102,9 +159,13 @@ const openApiDocument = {
       get: {
         tags: ['Recipes'],
         summary: 'Get one local recipe',
-        parameters: [recipeIdParameter],
+        description:
+          'Publicly readable, with no token required. A valid Bearer token is optional and only changes which HATEOAS links are advertised. Supports conditional requests through If-None-Match.',
+        security: optionalSecurity,
+        parameters: [recipeIdParameter, ifNoneMatchHeader],
         responses: {
-          '200': { description: 'Recipe detail', content: jsonContent({ $ref: '#/components/schemas/RecipeResponse' }) },
+          '200': { description: 'Recipe detail', headers: representationHeaders, content: jsonContent({ $ref: '#/components/schemas/RecipeResponse' }) },
+          '304': notModifiedResponse,
           '400': errorResponses['400'],
           '404': errorResponses['404'],
         },
@@ -248,10 +309,44 @@ const openApiDocument = {
         },
       },
       Recipe: {
-        allOf: [{ $ref: '#/components/schemas/RecipeInput' }, { type: 'object', required: ['id', 'createdAt', 'updatedAt'], properties: { id: { type: 'integer', readOnly: true }, createdAt: { type: 'string', format: 'date-time', readOnly: true }, updatedAt: { type: 'string', format: 'date-time', readOnly: true } } }],
+        allOf: [{ $ref: '#/components/schemas/RecipeInput' }, { type: 'object', required: ['id', 'createdAt', 'updatedAt', '_links'], properties: { id: { type: 'integer', readOnly: true }, createdAt: { type: 'string', format: 'date-time', readOnly: true }, updatedAt: { type: 'string', format: 'date-time', readOnly: true }, _links: { $ref: '#/components/schemas/RecipeLinks' } } }],
+      },
+      Link: {
+        type: 'object',
+        required: ['href', 'method', 'title'],
+        description: 'A single hypermedia control. The client can follow it without hard-coding knowledge of the API surface.',
+        properties: {
+          href: { type: 'string', example: '/api/recipes/1' },
+          method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'DELETE'] },
+          title: { type: 'string', example: 'This recipe' },
+        },
+      },
+      RecipeLinks: {
+        type: 'object',
+        description: 'Navigation links for a recipe. Links that require authentication are only advertised to authenticated callers, and administrator operations only to administrators.',
+        properties: {
+          self: { $ref: '#/components/schemas/Link' },
+          collection: { $ref: '#/components/schemas/Link' },
+          'add-favourite': { $ref: '#/components/schemas/Link' },
+          'remove-favourite': { $ref: '#/components/schemas/Link' },
+          'contact-administrator': { $ref: '#/components/schemas/Link' },
+          update: { $ref: '#/components/schemas/Link' },
+          delete: { $ref: '#/components/schemas/Link' },
+        },
+      },
+      CollectionLinks: {
+        type: 'object',
+        description: 'Navigation links for the recipe collection itself.',
+        properties: {
+          self: { $ref: '#/components/schemas/Link' },
+          'external-recipes': { $ref: '#/components/schemas/Link' },
+          favourites: { $ref: '#/components/schemas/Link' },
+          create: { $ref: '#/components/schemas/Link' },
+          messages: { $ref: '#/components/schemas/Link' },
+        },
       },
       RecipeResponse: { type: 'object', properties: { status: { type: 'string', enum: ['success'] }, data: { type: 'object', properties: { recipe: { $ref: '#/components/schemas/Recipe' } } } } },
-      RecipeListResponse: { type: 'object', properties: { status: { type: 'string', enum: ['success'] }, data: { type: 'object', properties: { recipes: { type: 'array', items: { $ref: '#/components/schemas/Recipe' } } } } } },
+      RecipeListResponse: { type: 'object', properties: { status: { type: 'string', enum: ['success'] }, data: { type: 'object', required: ['count', 'recipes'], properties: { count: { type: 'integer', example: 3, description: 'Number of recipes returned by this query' }, recipes: { type: 'array', items: { $ref: '#/components/schemas/Recipe' } }, _links: { $ref: '#/components/schemas/CollectionLinks' } } } } },
       RegisterRequest: { type: 'object', required: ['name', 'email', 'password'], properties: { name: { type: 'string', minLength: 2 }, email: { type: 'string', format: 'email' }, password: { type: 'string', minLength: 8, format: 'password' } } },
       LoginRequest: { type: 'object', required: ['email', 'password'], properties: { email: { type: 'string', format: 'email' }, password: { type: 'string', format: 'password' } } },
       User: { type: 'object', required: ['id', 'name', 'email', 'role', 'createdAt', 'updatedAt'], properties: { id: { type: 'integer' }, name: { type: 'string' }, email: { type: 'string', format: 'email' }, role: { type: 'string', enum: ['user', 'admin'] }, createdAt: { type: 'string', format: 'date-time' }, updatedAt: { type: 'string', format: 'date-time' } } },

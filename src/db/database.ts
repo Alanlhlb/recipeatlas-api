@@ -1,13 +1,24 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
+/**
+ * Selects the SQLite file name, using a dedicated database while tests run so the
+ * development data is never overwritten by the test suite.
+ */
 const databaseFileName =
   process.env.NODE_ENV === 'test' ? 'recipeatlas.test.db' : 'recipeatlas.db';
+/** Absolute path to the SQLite database file, stored at the project root. */
 const dbPath = path.join(__dirname, '..', '..', databaseFileName);
+/** Shared SQLite connection used by every service. */
 const db = new Database(dbPath);
 
 db.pragma('foreign_keys = ON');
 
+/**
+ * Creates the users, recipes, ingredients, favorites and messages tables when they
+ * do not already exist. Foreign keys cascade recipe and user deletions to their
+ * dependent rows.
+ */
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,4 +72,5 @@ db.exec(`
   );
 `);
 
+/** The shared database connection, re-exported for use across the API. */
 export default db;

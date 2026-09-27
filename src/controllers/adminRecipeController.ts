@@ -4,6 +4,14 @@ import { AppError } from '../middleware/errorHandler';
 
 /**
  * Creates a recipe for an authenticated administrator.
+ *
+ * Mounted at `POST /api/admin/recipes` behind the `requireAuth` and `requireAdmin`
+ * middleware, so it can rely on `req.user` being an administrator.
+ *
+ * @param req - Express request whose body holds the new recipe.
+ * @param res - Express response; sends 201 with the created recipe.
+ * @param next - Express continuation callback used to forward errors.
+ * @throws {AppError} 400 when the recipe payload is invalid.
  */
 export function create(req: Request, res: Response, next: NextFunction): void {
   try {
@@ -19,7 +27,11 @@ export function create(req: Request, res: Response, next: NextFunction): void {
 }
 
 /**
- * Validates and converts the route recipe id.
+ * Validates and converts the recipe id taken from the route parameters.
+ *
+ * @param req - Express request whose `id` parameter is read.
+ * @returns The recipe id as a positive whole number.
+ * @throws {AppError} 400 when the parameter is missing or not a positive integer.
  */
 function readRecipeId(req: Request): number {
   const idParameter = req.params.id;
@@ -39,6 +51,13 @@ function readRecipeId(req: Request): number {
 
 /**
  * Replaces a recipe for an authenticated administrator.
+ *
+ * Mounted at `PUT /api/admin/recipes/:id` behind `requireAuth` and `requireAdmin`.
+ *
+ * @param req - Express request whose body holds the replacement recipe.
+ * @param res - Express response; sends 200 with the updated recipe.
+ * @param next - Express continuation callback used to forward errors.
+ * @throws {AppError} 400 when the id or payload is invalid, 404 when the recipe is missing.
  */
 export function update(req: Request, res: Response, next: NextFunction): void {
   try {
@@ -55,6 +74,13 @@ export function update(req: Request, res: Response, next: NextFunction): void {
 
 /**
  * Deletes a recipe for an authenticated administrator.
+ *
+ * Mounted at `DELETE /api/admin/recipes/:id` behind `requireAuth` and `requireAdmin`.
+ *
+ * @param req - Express request whose `id` parameter identifies the recipe.
+ * @param res - Express response; sends a bodyless 204 on success.
+ * @param next - Express continuation callback used to forward errors.
+ * @throws {AppError} 400 when the id is invalid, 404 when the recipe is missing.
  */
 export function remove(req: Request, res: Response, next: NextFunction): void {
   try {

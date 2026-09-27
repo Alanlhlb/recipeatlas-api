@@ -5,6 +5,10 @@ import type { Recipe } from '../types/recipe';
 
 /**
  * Adds one local recipe to a user's favourites.
+ *
+ * @param userId - Identifier of the user saving the recipe.
+ * @param recipeId - Identifier of the local recipe to save.
+ * @throws {AppError} 404 when the recipe does not exist, 409 when it is already saved.
  */
 export function addFavorite(userId: number, recipeId: number): void {
   getRecipeById(recipeId);
@@ -28,6 +32,10 @@ export function addFavorite(userId: number, recipeId: number): void {
 
 /**
  * Returns the current user's saved recipes.
+ *
+ * @param userId - Identifier of the user whose favourites are read.
+ * @returns The saved recipes, most recently added first.
+ * @throws {AppError} 404 when a saved recipe no longer exists.
  */
 export function listFavorites(userId: number): Recipe[] {
   const rows = db
@@ -39,6 +47,10 @@ export function listFavorites(userId: number): Recipe[] {
 
 /**
  * Removes a saved recipe belonging to the current user.
+ *
+ * @param userId - Identifier of the user removing the favourite.
+ * @param recipeId - Identifier of the recipe to remove.
+ * @throws {AppError} 404 when the recipe is not saved by this user.
  */
 export function removeFavorite(userId: number, recipeId: number): void {
   const result = db
