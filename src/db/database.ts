@@ -1,12 +1,24 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-const dbPath = path.join(__dirname, '..', '..', 'recipeatlas.db');
+const databaseFileName =
+  process.env.NODE_ENV === 'test' ? 'recipeatlas.test.db' : 'recipeatlas.db';
+const dbPath = path.join(__dirname, '..', '..', databaseFileName);
 const db = new Database(dbPath);
 
 db.pragma('foreign_keys = ON');
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    passwordHash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('user', 'admin')) DEFAULT 'user',
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
