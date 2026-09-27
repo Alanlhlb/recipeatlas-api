@@ -14,6 +14,11 @@ describe('OpenAPI documentation', () => {
       },
       paths: {
         '/health': expect.any(Object),
+        '/api/auth/register': expect.any(Object),
+        '/api/recipes': expect.any(Object),
+        '/api/favorites': expect.any(Object),
+        '/api/messages': expect.any(Object),
+        '/api/admin/recipes': expect.any(Object),
       },
       components: {
         securitySchemes: {
