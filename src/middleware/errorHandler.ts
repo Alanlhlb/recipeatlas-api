@@ -5,6 +5,19 @@ interface ErrorWithStatusCode extends Error {
 }
 
 /**
+ * Represents an expected API error with a safe HTTP status code.
+ */
+export class AppError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode: number,
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+
+/**
  * Returns a consistent response when no route matches a request.
  */
 export function notFoundHandler(req: Request, res: Response): void {
