@@ -5,6 +5,7 @@ import './db/database';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import authRouter from './routes/authRoutes';
 import adminRecipeRouter from './routes/adminRecipeRoutes';
+import recipeRouter from './routes/recipeRoutes';
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRecipeRouter);
+app.use('/api/recipes', recipeRouter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

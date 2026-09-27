@@ -126,6 +126,28 @@ function getRecipeById(id: number): Recipe {
 }
 
 /**
+ * Lists recipes for the public catalogue.
+ */
+export function listRecipes(): Recipe[] {
+  const recipes = db
+    .prepare(
+      `SELECT id, title, instructions, category, imageUrl, cookingTime, servings,
+              difficulty, createdAt, updatedAt
+       FROM recipes ORDER BY updatedAt DESC, id DESC`,
+    )
+    .all() as Omit<Recipe, 'ingredients'>[];
+
+  const ingredientsForRecipe = db.prepare(
+    'SELECT id, recipeId, name, quantity FROM ingredients WHERE recipeId = ?',
+  );
+
+  return recipes.map((recipe) => ({
+    ...recipe,
+    ingredients: ingredientsForRecipe.all(recipe.id) as Ingredient[],
+  }));
+}
+
+/**
  * Creates a recipe and its ingredients as one database transaction.
  */
 export function createRecipe(input: CreateRecipeInput): Recipe {
