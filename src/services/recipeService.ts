@@ -126,6 +126,52 @@ export function getRecipeById(id: number): Recipe {
 }
 
 /**
+ * Replaces a recipe and its ingredients as one database transaction.
+ */
+export function updateRecipe(id: number, input: CreateRecipeInput): Recipe {
+  const recipe = validateRecipe(input);
+  const now = new Date().toISOString();
+
+  const update = db.transaction(() => {
+    const result = db
+      .prepare(
+        `UPDATE recipes
+         SET title = ?, instructions = ?, category = ?, imageUrl = ?, cookingTime = ?,
+             servings = ?, difficulty = ?, updatedAt = ?
+         WHERE id = ?`,
+      )
+      .run(
+        recipe.title,
+        recipe.instructions,
+        recipe.category,
+        recipe.imageUrl,
+        recipe.cookingTime,
+        recipe.servings,
+        recipe.difficulty,
+        now,
+        id,
+      );
+
+    if (result.changes === 0) {
+      throw new AppError('Recipe was not found', 404);
+    }
+
+    db.prepare('DELETE FROM ingredients WHERE recipeId = ?').run(id);
+
+    const insertIngredient = db.prepare(
+      'INSERT INTO ingredients (recipeId, name, quantity) VALUES (?, ?, ?)',
+    );
+
+    for (const ingredient of recipe.ingredients) {
+      insertIngredient.run(id, ingredient.name, ingredient.quantity);
+    }
+  });
+
+  update();
+  return getRecipeById(id);
+}
+
+/**
  * Lists recipes for the public catalogue.
  */
 export function listRecipes(searchQuery?: unknown): Recipe[] {
