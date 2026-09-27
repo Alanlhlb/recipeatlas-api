@@ -172,6 +172,17 @@ export function updateRecipe(id: number, input: CreateRecipeInput): Recipe {
 }
 
 /**
+ * Deletes a recipe. SQLite cascades the deletion to its ingredients.
+ */
+export function deleteRecipe(id: number): void {
+  const result = db.prepare('DELETE FROM recipes WHERE id = ?').run(id);
+
+  if (result.changes === 0) {
+    throw new AppError('Recipe was not found', 404);
+  }
+}
+
+/**
  * Lists recipes for the public catalogue.
  */
 export function listRecipes(searchQuery?: unknown): Recipe[] {
