@@ -4,9 +4,9 @@ import { listRecipes } from '../services/recipeService';
 /**
  * Returns the public recipe catalogue.
  */
-export function list(_req: Request, res: Response, next: NextFunction): void {
+export function list(req: Request, res: Response, next: NextFunction): void {
   try {
-    const recipes = listRecipes();
+    const recipes = listRecipes(req.query.q);
 
     res.status(200).json({
       status: 'success',

@@ -128,14 +128,29 @@ function getRecipeById(id: number): Recipe {
 /**
  * Lists recipes for the public catalogue.
  */
-export function listRecipes(): Recipe[] {
-  const recipes = db
-    .prepare(
-      `SELECT id, title, instructions, category, imageUrl, cookingTime, servings,
-              difficulty, createdAt, updatedAt
-       FROM recipes ORDER BY updatedAt DESC, id DESC`,
-    )
-    .all() as Omit<Recipe, 'ingredients'>[];
+export function listRecipes(searchQuery?: unknown): Recipe[] {
+  let query = `SELECT id, title, instructions, category, imageUrl, cookingTime, servings,
+                      difficulty, createdAt, updatedAt
+               FROM recipes`;
+  let parameters: string[] = [];
+
+  if (searchQuery !== undefined) {
+    if (typeof searchQuery !== 'string') {
+      throw new AppError('q must be text', 400);
+    }
+
+    const term = searchQuery.trim().toLowerCase();
+
+    if (term) {
+      const escapedTerm = term.replace(/[\\%_]/g, '\\$&');
+      query += ' WHERE LOWER(title) LIKE ? ESCAPE \'\\\'';
+      parameters = [`%${escapedTerm}%`];
+    }
+  }
+
+  query += ' ORDER BY updatedAt DESC, id DESC';
+
+  const recipes = db.prepare(query).all(...parameters) as Omit<Recipe, 'ingredients'>[];
 
   const ingredientsForRecipe = db.prepare(
     'SELECT id, recipeId, name, quantity FROM ingredients WHERE recipeId = ?',
